@@ -27,7 +27,9 @@ experiments/
 tests/
   test_all.py        pytest-style sanity tests for every attack and defense
 figures/              generated CSVs + PNG plots (see report)
-demo_http.py          live end-to-end demo over real HTTP (Flask + requests)
+demo_http.py          single-process live demo over real HTTP (Flask + requests)
+server_demo.py         TERMINAL 1: the vulnerable server as its own process
+attacker_demo.py       TERMINAL 2: the attacker, live byte-by-byte progress display
 ```
 
 ## Quick start
@@ -38,8 +40,19 @@ pip install cryptography flask requests sympy matplotlib
 # unit tests
 python3 tests/test_all.py
 
-# live HTTP demo (starts a real Flask server, attacks it over the network)
+# live HTTP demo, single process (starts a real Flask server, attacks it over the network)
 python3 demo_http.py
+
+# live HTTP demo, two separate processes (recommended for presenting):
+#   terminal 1:
+python3 server_demo.py
+#   terminal 2, once terminal 1 says "Running on http://127.0.0.1:5055":
+python3 attacker_demo.py
+# attacker_demo.py prints only HTTP requests/responses and shows the
+# recovered plaintext filling in live, byte by byte, with a running
+# query counter -- it never imports server.py or touches the key.
+# Compare the key server_demo.py prints at startup with everything
+# attacker_demo.py prints: the key never appears there.
 
 # run all experiments and regenerate the plots
 python3 experiments/exp_padding_oracle_cost.py

@@ -57,9 +57,13 @@ def _find_intermediate_byte(oracle, prev_block: bytearray, target_block: bytes,
 
 
 def decrypt_block(oracle, prev_block: bytes, target_block: bytes,
-                   stats: AttackStats | None = None) -> bytes:
+                   stats: AttackStats | None = None, on_byte=None) -> bytes:
     """Decrypt one ciphertext block given the oracle and the preceding
-    ciphertext block (or the IV, for the first block)."""
+    ciphertext block (or the IV, for the first block).
+
+    If given, on_byte(pos, plaintext_byte) is called immediately after each
+    byte of this block is recovered (bytes are found last-byte-first), so a
+    caller can render progress live instead of waiting for the whole block."""
     stats = stats or AttackStats()
     intermediate = [0] * BLOCK_SIZE
     forged = bytearray(BLOCK_SIZE)
@@ -71,21 +75,36 @@ def decrypt_block(oracle, prev_block: bytes, target_block: bytes,
         for j in range(pos + 1, BLOCK_SIZE):
             forged[j] = intermediate[j] ^ pad_val
         intermediate[pos] = _find_intermediate_byte(oracle, forged, target_block, pos, pad_val, stats)
+        if on_byte is not None:
+            on_byte(pos, intermediate[pos] ^ prev_block[pos])
 
     plaintext = bytes(intermediate[i] ^ prev_block[i] for i in range(BLOCK_SIZE))
     return plaintext
 
 
 def decrypt(oracle, iv: bytes, ciphertext: bytes,
-            stats: AttackStats | None = None) -> bytes:
+            stats: AttackStats | None = None, on_block_byte=None, on_block_done=None) -> bytes:
     """Decrypt a full multi-block ciphertext (IV + C_1 || C_2 || ... || C_n),
     returning the plaintext WITH PKCS#7 padding still attached (strip it
-    with aes_core.pkcs7_unpad if you want the unpadded message)."""
+    with aes_core.pkcs7_unpad if you want the unpadded message).
+
+    on_block_byte(block_index, pos, plaintext_byte): called as each byte of
+    each block is recovered (block_index is 0-based, pos is 0..15).
+    on_block_done(block_index, block_plaintext): called when a block finishes."""
     stats = stats or AttackStats()
     blocks = [iv] + [ciphertext[i:i + BLOCK_SIZE] for i in range(0, len(ciphertext), BLOCK_SIZE)]
     plaintext = b""
     for i in range(1, len(blocks)):
-        plaintext += decrypt_block(oracle, blocks[i - 1], blocks[i], stats)
+        block_index = i - 1
+
+        def _cb(pos, byte_value, _bi=block_index):
+            if on_block_byte is not None:
+                on_block_byte(_bi, pos, byte_value)
+
+        block_plaintext = decrypt_block(oracle, blocks[i - 1], blocks[i], stats, on_byte=_cb)
+        plaintext += block_plaintext
+        if on_block_done is not None:
+            on_block_done(block_index, block_plaintext)
     return plaintext
 
 
