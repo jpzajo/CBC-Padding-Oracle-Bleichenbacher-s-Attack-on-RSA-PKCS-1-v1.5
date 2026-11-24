@@ -58,12 +58,19 @@ def plot_bb_modulus_size():
 
 def plot_bb_noisy_oracle():
     rows = read_csv("bb_noisy_oracle.csv")
-    x = [r["p_error"] for r in rows]
+    # Plot against the index (evenly spaced) rather than the raw p_error
+    # value (unevenly spaced, near-zero), so points aren't crowded together
+    # and so we can label each one with just its own value, at the
+    # precision it actually needs, instead of letting matplotlib pick
+    # shared linear ticks across the full 0-0.002 range.
+    x_pos = list(range(len(rows)))
     y = [r["success_rate"] for r in rows]
+    labels = [f"{r['p_error'] * 100:g}%" for r in rows]
 
     plt.figure(figsize=(5.5, 4))
-    plt.plot(x, y, marker="o", color="#d1242f")
-    plt.xlabel("Per-query oracle error probability")
+    plt.plot(x_pos, y, marker="o", color="#d1242f")
+    plt.xticks(x_pos, labels)
+    plt.xlabel("Per-query oracle error rate")
     plt.ylabel("Attack success rate")
     plt.ylim(-0.05, 1.05)
     plt.title("Bleichenbacher attack collapses under a noisy oracle")
