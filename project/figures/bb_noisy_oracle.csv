@@ -1,0 +1,6 @@
+p_error,success_rate,mean_queries_on_success,n_success
+0.0,1.0,33478.5,8
+0.0002,0.0,nan,0
+0.0005,0.125,712,1
+0.001,0.0,nan,0
+0.002,0.0,nan,0
